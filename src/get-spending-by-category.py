@@ -4,11 +4,16 @@ from BeautifulSoup import BeautifulStoneSoup
 from Queue import Queue
 from threading import Lock
 from threading import Thread
+import gflags
 import mechanize
 import pprint
 import re
 import string
 import sys
+
+FLAGS=gflags.FLAGS
+
+gflags.DEFINE_integer("year", 0, "Only process results from this year.")
 
 """ Strip the dollar sign and comma to make importing easier later."""
 def formatMoney(value):
@@ -39,13 +44,14 @@ def parseCategoryTable(category_page):
     category_detail_page_url = url_base + category_link_tag['href']
     category_description = category_link_tag.string.strip()
     category_total = formatMoney(row.findAll('td')[2].string)
-    categories.append({
-        'fiscal_year': fiscal_year,
-        'name': category_description,
-        'detail_url': category_detail_page_url,
-        'total': category_total,
-        'details': [],
-      })
+    if FLAGS.year == 0 or FLAGS.year == int(fiscal_year):
+      categories.append({
+          'fiscal_year': fiscal_year,
+          'name': category_description,
+          'detail_url': category_detail_page_url,
+          'total': category_total,
+          'details': [],
+          })
   return categories
 
 """ Worker method used by a thread to process a category page."""
@@ -159,6 +165,11 @@ def parseVendorTable(vendor_page):
     })
   return vendors
 
+try:
+  argv = FLAGS(sys.argv)
+except gflags.FlagsError, e:
+  print '%s\\nUsage: %s ARGS\\n%s' % (e, sys.argv[0], FLAGS)
+  sys.exit(1)
 
 url_base = 'http://mcap.milwaukeecounty.org/MAP/Expenditures/Categories/'
 by_category_url = 'Default.aspx?year=0'

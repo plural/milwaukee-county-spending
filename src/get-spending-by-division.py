@@ -4,11 +4,16 @@ from BeautifulSoup import BeautifulStoneSoup
 from Queue import Queue
 from threading import Lock
 from threading import Thread
+import gflags
 import mechanize
 import pprint
 import re
 import string
 import sys
+
+FLAGS = gflags.FLAGS
+
+gflags.DEFINE_integer("year", 0, "Only process results from this year.")
 
 """ Strip the dollar sign and comma to make importing easier later."""
 def formatMoney(value):
@@ -40,14 +45,15 @@ def parseDepartmentTable(department_page):
     division_detail_page_url = url_base + division_link['href']
     division_name = division_link.string.strip()
     division_total = formatMoney(row.findAll('td')[3].string)
-    departments.append({
-        'fiscal_year': department_fiscal_year,
-        'department_name': department_name,
-        'division_name': division_name,
-        'division_detail_page_url': division_detail_page_url,
-        'division_total': division_total,
-        'categories': [],
-      })
+    if FLAGS.year == 0 or FLAGS.year == int(department_fiscal_year):
+      departments.append({
+          'fiscal_year': department_fiscal_year,
+          'department_name': department_name,
+          'division_name': division_name,
+          'division_detail_page_url': division_detail_page_url,
+          'division_total': division_total,
+          'categories': [],
+          })
   return departments
 
 """ Worker method used by a thread to process a category page."""
@@ -214,6 +220,12 @@ def parseVendorTable(vendor_page):
       'amount': formatMoney(row.findAll('td')[1].string)
     })
   return vendors
+
+try:
+  argv = FLAGS(sys.argv)
+except gflags.FlagsError, e:
+  print '%s\\nUsage: %s ARGS\\n%s' % (e, sys.argv[0], FLAGS)
+  sys.exit(1)
 
 url_base = 'http://mcap.milwaukeecounty.org/MAP/Expenditures/Agencies/'
 by_department_url = 'Default.aspx?year=0'
